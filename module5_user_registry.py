@@ -36,17 +36,6 @@ WINDOW_SIZE = 200
 
 @dataclass
 class MotorState:
-    """Стан одного сервомотора в реєстрі.
-
-    Кожен мотор має ВЛАСНИЙ фізичний профіль (`physics`) з невеликими
-    відхиленнями від номіналу — тому два мотори того самого оператора
-    в одному режимі дадуть візуально РІЗНУ телеметрію (різні базові
-    температури, рівні шуму, амплітуди тощо).
-
-    Поле `description` — вільний текстовий опис локації / позначення
-    обладнання, який задає оператор при створенні мотора
-    (наприклад, "Станція 1 / Верстат 2", "Конвеєрна лінія A — двигун 3").
-    """
     name: str
     owner: str
     physics: MotorPhysics = field(default_factory=MotorPhysics.default)
@@ -79,17 +68,6 @@ class UserData:
 
 
 class SystemRegistry:
-    """Спільний реєстр усіх користувачів процесу.
-
-    Модель доступу:
-    - Адміністратор у системі ЄДИНИЙ: ім'я `ADMIN_NAME` ('admin'),
-      воно зарезервоване й не може використовуватися операторами.
-    - Оператори додаються адміністратором у `registered_operators`.
-    - При спробі входу під незареєстрованим іменем — відмова.
-
-    Безпечний для конкурентного доступу з кількох Streamlit-сесій
-    завдяки внутрішньому `threading.Lock`.
-    """
 
     ADMIN_NAME = "admin"
 
@@ -104,11 +82,6 @@ class SystemRegistry:
 
     def _log_event(self, actor: str, action: str, target: str = "",
                    details: str = "") -> None:
-        """Внутрішнє: додати запис до аудит-логу.
-        Викликати ПОЗА секцією, що тримає _lock, або обережно
-        (зараз ми тримаємо лок під час викликів — додаємо без
-        рекурсивного захоплення).
-        """
         self._audit_log.append({
             "timestamp": time.time(),
             "actor": actor,
@@ -120,7 +93,6 @@ class SystemRegistry:
             self._audit_log = self._audit_log[-self.AUDIT_LIMIT:]
 
     def get_audit_log(self, limit: int = 30) -> pd.DataFrame:
-        """Останні `limit` подій у вигляді DataFrame для GUI."""
         with self._lock:
             events = list(self._audit_log[-limit:][::-1])
         if not events:
@@ -143,10 +115,6 @@ class SystemRegistry:
         return name == self.ADMIN_NAME
 
     def can_login(self, name: str) -> tuple[bool, str]:
-        """Перевірити, чи дозволено увійти під цим іменем.
-
-        Повертає (allowed, role) — role є 'admin' або 'operator'.
-        """
         with self._lock:
             if name == self.ADMIN_NAME:
                 return True, "admin"
@@ -155,7 +123,6 @@ class SystemRegistry:
             return False, ""
 
     def register_user(self, name: str, role: str) -> UserData:
-        """Створити запис активної сесії після успішної перевірки."""
         with self._lock:
             is_new = name not in self.users
             if is_new:
@@ -168,12 +135,10 @@ class SystemRegistry:
             return self.users[name]
 
     def logout_user(self, name: str) -> None:
-        """М'який вихід: дані користувача залишаються в реєстрі."""
         with self._lock:
             self._log_event(actor=name, action="LOGOUT", target=name)
 
     def create_operator(self, name: str, by_admin: str = "admin") -> None:
-        """Додати нового оператора (виконує адмін)."""
         with self._lock:
             if name == self.ADMIN_NAME:
                 raise ValueError(
@@ -186,9 +151,6 @@ class SystemRegistry:
                             target=name)
 
     def remove_operator(self, name: str, by_admin: str = "admin") -> None:
-        """Видалити оператора повністю: з білого списку та з активних
-        сесій (разом із його моторами).
-        """
         with self._lock:
             self.registered_operators.discard(name)
             user = self.users.pop(name, None)
@@ -199,12 +161,10 @@ class SystemRegistry:
                             target=name, details=details)
 
     def list_registered_operators(self) -> list[str]:
-        """Перелік ВСІХ зареєстрованих імен — навіть тих, хто зараз не онлайн."""
         with self._lock:
             return sorted(self.registered_operators)
 
     def list_operators(self) -> list[str]:
-        """Перелік операторів, що мають активну сесію (онлайн)."""
         with self._lock:
             return sorted(
                 n for n, u in self.users.items() if u.role == "operator"
@@ -213,14 +173,6 @@ class SystemRegistry:
     def add_motor(self, owner: str, motor_name: str,
                   description: str = "",
                   physics: MotorPhysics | None = None) -> MotorState:
-        """Додає новий мотор з ВИПАДКОВИМ фізичним профілем (±5–10%).
-
-        Якщо `physics` не задано — генерується випадковий варіант,
-        тому кожен новий мотор має унікальні характеристики.
-
-        `description` — вільний опис локації обладнання, що задає
-        оператор при створенні (наприклад, 'Станція 1 / Верстат 2').
-        """
         with self._lock:
             user = self.users[owner]
             is_new = motor_name not in user.motors
@@ -244,7 +196,6 @@ class SystemRegistry:
 
     def update_motor_description(self, owner: str, motor_name: str,
                                  description: str) -> None:
-        """Оновити опис існуючого мотора."""
         with self._lock:
             user = self.users.get(owner)
             if user and motor_name in user.motors:
@@ -270,9 +221,6 @@ class SystemRegistry:
             return user.motors.get(motor_name)
 
     def get_load_summary(self) -> pd.DataFrame:
-        """Зведена таблиця: рядок на КОЖНОГО зареєстрованого оператора,
-        включно з тими, хто зараз не онлайн (порожні поля).
-        """
         with self._lock:
             now = time.time()
             rows = []
@@ -315,7 +263,6 @@ class SystemRegistry:
             return pd.DataFrame(rows)
 
     def get_failing_motors(self) -> list[tuple[str, str, float]]:
-        """Список (operator, motor, P_fail) для моторів у стані FAILURE."""
         with self._lock:
             result = []
             for username, user in self.users.items():
@@ -327,22 +274,6 @@ class SystemRegistry:
             return sorted(result, key=lambda x: -x[2])
 
     def sample_system_metrics(self) -> None:
-        """Зафіксувати поточне навантаження CPU та RAM **нашого процесу**
-        (Streamlit-сервер з ML-моделями, генерацією телеметрії тощо).
-
-        - CPU: `Process.cpu_percent(interval=0.1)` блокуюче вимірювання
-          протягом 100 мс — дає чесні цифри без шумових стрибків
-          0↔100, які властиві виклику `interval=None`.
-          Нормалізується на кількість логічних CPU, щоб шкала 0–100%
-          відповідала "%-ту від усіх ядер" (а не одного).
-        - RAM: `Process.memory_info().rss` — Resident Set Size (фізична
-          пам'ять, реально зайнята процесом).
-          Показуємо у МБ + % від системних.
-
-        Викликається з адмін-дашборда на кожному auto-refresh.
-        Зберігає до 200 останніх точок (≈ 5 хв при оновленні 1.5 с).
-        Якщо `psutil` не встановлено — мовчки пропускає сэмплування.
-        """
         if not _PSUTIL_OK:
             return
         try:
@@ -375,7 +306,6 @@ class SystemRegistry:
             })
 
     def get_system_metrics_df(self) -> pd.DataFrame:
-        """DataFrame системних метрик з часом у форматі HH:MM:SS."""
         with self._lock:
             snapshot = list(self.system_metrics)
         if not snapshot:
@@ -388,7 +318,6 @@ class SystemRegistry:
         return df
 
     def latest_system_metric(self) -> dict | None:
-        """Останнє зафіксоване значення CPU/RAM, або None."""
         with self._lock:
             if not self.system_metrics:
                 return None
@@ -416,12 +345,6 @@ _singleton: SystemRegistry | None = None
 
 
 def get_registry() -> SystemRegistry:
-    """Повертає глобальний реєстр процесу.
-
-    Використовуємо власний singleton (а не `@st.cache_resource`),
-    щоб реєстр був доступним і у модулях, що імпортуються поза
-    Streamlit-контекстом (тести, CLI-перевірки).
-    """
     global _singleton
     if _singleton is None:
         _singleton = SystemRegistry()
