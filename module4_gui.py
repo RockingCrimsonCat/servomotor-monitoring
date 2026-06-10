@@ -201,7 +201,6 @@ def _plot(series_name: str, color: str, units: str,
 
 
 def _render_motor_card(m: MotorState, is_selected: bool) -> None:
-    """Компактна картка одного мотора для блоку огляду."""
     state_color = STATE_COLOR_MAP.get(m.last_state, "#888")
     conn_color = "#2ecc71" if m.connected else "#7f8c8d"
     conn_text = "ONLINE" if m.connected else "OFFLINE"
@@ -257,12 +256,6 @@ def _render_motor_card(m: MotorState, is_selected: bool) -> None:
 
 
 def _render_operator_overview(motors: list[MotorState]) -> None:
-    """Блок загального огляду всіх моторів оператора.
-
-    Розташовується у верхній частині дашборда, ВИЩЕ блоку обраного мотора.
-    Дозволяє оператору одним поглядом охопити стан усього свого "флоту".
-    Натискання кнопки «Обрати» переключає головний дашборд на цей мотор.
-    """
     if not motors:
         return
 
