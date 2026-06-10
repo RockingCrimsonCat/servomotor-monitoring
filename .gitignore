@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+
+# Віртуальні середовища
+.venv/
+venv/
+env/
+ENV/
+
+# IDE / редактори
+.idea/
+.vscode/
+*.swp
+
+# Згенеровані артефакти (створюються під час роботи застосунку)
+data/
+models/
+streams/
+*.joblib
+
+# ОС
+.DS_Store
+Thumbs.db
