@@ -44,7 +44,6 @@ def _load_or_generate() -> pd.DataFrame:
 
 
 def train_models(seed: int = 42) -> TrainingReport:
-    """Натренувати обидві моделі та зберегти їх."""
     df = _load_or_generate()
     X = np.asarray(df[FEATURES].to_numpy(), dtype=np.float64)
     y = np.asarray(df["state"].to_numpy(), dtype=object)
@@ -87,7 +86,6 @@ def models_exist() -> bool:
 
 
 def load_models() -> tuple[RandomForestClassifier, IsolationForest]:
-    """Завантажити моделі з диску (тренує, якщо ще не існують)."""
     if not models_exist():
         train_models()
     clf = joblib.load(CLASSIFIER_PATH)
@@ -97,7 +95,6 @@ def load_models() -> tuple[RandomForestClassifier, IsolationForest]:
 
 def predict_state(clf: RandomForestClassifier,
                   samples: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    """Передбачити клас та матрицю ймовірностей класів."""
     X = np.asarray(samples[FEATURES].to_numpy(), dtype=np.float64)
     labels = clf.predict(X)
     proba = clf.predict_proba(X)
@@ -106,7 +103,6 @@ def predict_state(clf: RandomForestClassifier,
 
 def detect_anomalies(iforest: IsolationForest,
                      samples: pd.DataFrame) -> tuple[np.ndarray, np.ndarray]:
-    """Повернути маску аномалій (bool) та оцінку аномальності (чим менше, тим аномальніше)."""
     X = np.asarray(samples[FEATURES].to_numpy(), dtype=np.float64)
     raw = iforest.predict(X)
     score = iforest.decision_function(X)
@@ -114,7 +110,6 @@ def detect_anomalies(iforest: IsolationForest,
 
 
 def class_index(clf: RandomForestClassifier, label: str) -> int:
-    """Знайти позицію класу `label` у масиві clf.classes_."""
     classes = list(clf.classes_)
     if label not in classes:
         raise ValueError(f"Клас {label} відсутній у моделі: {classes}")
