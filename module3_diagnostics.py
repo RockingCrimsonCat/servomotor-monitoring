@@ -120,14 +120,6 @@ def _build_recommendations(latest: pd.Series, state: str,
 def build_report(window_df: pd.DataFrame,
                  clf,
                  anomaly_mask: np.ndarray | None = None) -> DiagnosticReport:
-    """Сформувати діагностичний звіт по останньому вікну вимірювань.
-
-    Параметри
-    ---------
-    window_df : DataFrame з колонками FEATURES (останні N точок).
-    clf       : натренований RandomForestClassifier.
-    anomaly_mask : булева маска довжиною len(window_df) з аномаліями Isolation Forest.
-    """
     if window_df.empty:
         return DiagnosticReport(
             state="NORMAL",
